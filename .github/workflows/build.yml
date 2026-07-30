@@ -17,17 +17,26 @@ jobs:
       - name: Find project ZIP
         run: |
           ZIP_FILE=$(find . -maxdepth 1 -type f -name "*.zip" | head -n 1)
+
           if [ -z "$ZIP_FILE" ]; then
             echo "ZIP file not found"
             exit 1
           fi
+
+          rm -rf project
+          mkdir project
           unzip -q "$ZIP_FILE" -d project
 
       - name: Find Gradle project
         run: |
-          PROJECT_DIR=$(find project -name settings.gradle -o -name settings.gradle.kts | head -n 1 | xargs dirname)
+          PROJECT_DIR=$(find project -type f \( -name "settings.gradle" -o -name "settings.gradle.kts" \) -print -quit | xargs dirname)
+
+          if [ -z "$PROJECT_DIR" ]; then
+            echo "Gradle project not found"
+            exit 1
+          fi
+
           echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
-          echo "Project directory: $PROJECT_DIR"
 
       - name: Set up JDK
         uses: actions/setup-java@v4
@@ -38,15 +47,18 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          gradle-version: '8.10'
+
       - name: Build APK
         working-directory: ${{ env.PROJECT_DIR }}
         run: |
-          chmod +x gradlew
-          ./gradlew assembleDebug
+          gradle assembleDebug --stacktrace
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: GyroBridgeClient-debug-apk
-          path: |
-            ${{ env.PROJECT_DIR }}/app/build/outputs/apk/debug/*.apk
+          path: ${{ env.PROJECT_DIR }}/app/build/outputs/apk/debug/*.apk
