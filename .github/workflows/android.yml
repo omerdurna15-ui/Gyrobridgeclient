@@ -1,0 +1,80 @@
+name: Build Android APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Repository'i indir
+        uses: actions/checkout@v4
+
+      - name: ZIP'i bul ve çıkar
+        shell: bash
+        run: |
+          ZIP_FILE=$(find . -maxdepth 1 -type f -iname "*.zip" | head -n 1)
+
+          if [ -z "$ZIP_FILE" ]; then
+            echo "ZIP bulunamadı!"
+            exit 1
+          fi
+
+          echo "Bulunan ZIP: $ZIP_FILE"
+
+          rm -rf project
+          mkdir project
+          unzip -q "$ZIP_FILE" -d project
+
+      - name: Gradle projesini bul
+        shell: bash
+        run: |
+          SETTINGS=$(find project -type f \( \
+            -name "settings.gradle" \
+            -o -name "settings.gradle.kts" \
+          \) -print -quit)
+
+          if [ -z "$SETTINGS" ]; then
+            echo "settings.gradle veya settings.gradle.kts bulunamadı!"
+            find project -maxdepth 4 -type f | sort
+            exit 1
+          fi
+
+          PROJECT_DIR=$(dirname "$SETTINGS")
+
+          echo "Proje: $PROJECT_DIR"
+          echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
+
+      - name: Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Android paketlerini kur
+        run: |
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0"
+
+      - name: Gradle
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          gradle-version: "8.2"
+
+      - name: APK oluştur
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: |
+          gradle :app:assembleDebug --stacktrace
+
+      - name: APK'yı yükle
+        uses: actions/upload-artifact@v4
+        with:
+          name: GyroSwipeController-APK
+          path: ${{ env.PROJECT_DIR }}/app/build/outputs/apk/debug/*.apk
