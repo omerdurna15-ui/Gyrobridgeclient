@@ -1,25 +1,12 @@
-      - name: Build APK
-        working-directory: ${{ env.PROJECT_DIR }}
-        shell: bash
-        run: |
-          echo "===== PROJECT ====="
-          pwd
-          find . -maxdepth 3 -type f | sort
+name: Build Android APK
 
-          echo "===== JAVA ====="
-          java -version
+on:
+  workflow_dispatch:
 
-          echo "===== GRADLE ====="
-          gradle --version
+jobs:
+  test:
+    runs-on: ubuntu-latest
 
-          echo "===== SETTINGS ====="
-          cat settings.gradle.kts
-
-          echo "===== ROOT BUILD ====="
-          cat build.gradle.kts
-
-          echo "===== APP BUILD ====="
-          cat app/build.gradle.kts
-
-          echo "===== BUILD ====="
-          gradle :app:assembleDebug --stacktrace --info --no-daemon
+    steps:
+      - name: Test
+        run: echo "GitHub Actions çalışıyor!"
