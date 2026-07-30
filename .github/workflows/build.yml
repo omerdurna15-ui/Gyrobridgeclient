@@ -31,15 +31,15 @@ jobs:
       - name: Find Android project
         shell: bash
         run: |
-          PROJECT_DIR=$(find project -name "settings.gradle.kts" -type f -print -quit)
+          SETTINGS_FILE=$(find project -type f -name "settings.gradle.kts" -print -quit)
 
-          if [ -z "$PROJECT_DIR" ]; then
+          if [ -z "$SETTINGS_FILE" ]; then
             echo "settings.gradle.kts bulunamadı."
+            find project -maxdepth 3 -type f
             exit 1
           fi
 
-          PROJECT_DIR=$(dirname "$PROJECT_DIR")
-
+          PROJECT_DIR=$(dirname "$SETTINGS_FILE")
           echo "PROJECT_DIR=$PROJECT_DIR"
           echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
 
@@ -49,6 +49,14 @@ jobs:
           distribution: temurin
           java-version: "17"
 
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK packages
+        run: |
+          yes | sdkmanager --licenses > /dev/null || true
+          sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0"
+
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v6
         with:
@@ -56,10 +64,11 @@ jobs:
 
       - name: Build APK
         working-directory: ${{ env.PROJECT_DIR }}
-        run: gradle assembleDebug --stacktrace
+        run: |
+          gradle assembleDebug --stacktrace --info
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: GyroSwipeController-debug
+          name: GyroSwipeController-debug-apk
           path: ${{ env.PROJECT_DIR }}/app/build/outputs/apk/debug/*.apk
